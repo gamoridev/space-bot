@@ -1,0 +1,368 @@
+# -*- coding: utf-8 -*-    
+from cv2 import cv2
+from os import listdir
+from random import randint
+from random import random
+import numpy as np
+import mss
+import pyautogui
+import time
+import sys
+from debug import Debug
+
+VERSAO_SCRIPT = "1.02"
+
+# Tempo entre ações
+pyautogui.PAUSE = 0.2
+
+# Definicao de quatidade de naves
+empty_qtd_spaceships = 30
+qtd_send_spaceships = 10
+cda = 100
+
+global x_scroll
+global y_scroll
+global h_scroll
+global w_scroll
+global ship_clicks
+global timesScrolled
+global scrollChances
+ship_clicks = 0
+timesScrolled = 0
+scrollChances = 15
+
+dbg = Debug('debug.log')
+
+def addRandomness(n, randomn_factor_size=None):
+    if randomn_factor_size is None:
+        randomness_percentage = 0.1
+        randomn_factor_size = randomness_percentage * n
+    random_factor = 2 * random() * randomn_factor_size
+    if random_factor > 5:
+        random_factor = 5
+    without_average_random_factor = n - randomn_factor_size
+    randomized_n = int(without_average_random_factor + random_factor)
+    return int(randomized_n)
+
+def moveToWithRandomness(x,y):
+    pyautogui.moveTo(addRandomness(x,10),addRandomness(y,10),0.4)
+
+def remove_suffix(input_string, suffix):
+    if suffix and input_string.endswith(suffix):
+        return input_string[:-len(suffix)]
+    return input_string
+
+def load_images(dir_path='./img_compare/'):
+    file_names = listdir(dir_path)
+    targets = {}
+    for file in file_names:
+        path = 'img_compare/' + file
+        targets[remove_suffix(file, '.png')] = cv2.imread(path)
+    return targets
+
+def show(rectangles, img = None):
+    if img is None:
+        with mss.mss() as sct:
+            monitor = sct.monitors[0]
+            img = np.array(sct.grab(monitor))
+    for (x, y, w, h) in rectangles:
+        cv2.rectangle(img, (x, y), (x + w, y + h), (255,255,255,255), 2)
+    cv2.imshow('img',img)
+    cv2.waitKey(0)
+
+def clickBtn(img,name=None, timeout=3, threshold = 0.7):
+    if not name is None:
+        pass
+    start = time.time()
+    while(True):
+        matches = positions(img, threshold=threshold)
+        if(len(matches)==0):
+            hast_timed_out = time.time()-start > timeout
+            if(hast_timed_out):
+                if not name is None:
+                    pass
+
+                return False
+            continue
+        x,y,w,h = matches
+        pos_click_x = x+w/2
+        pos_click_y = y+h/2
+        moveToWithRandomness(pos_click_x,pos_click_y)
+        pyautogui.click()
+        return True
+
+def printSreen():
+    with mss.mss() as sct:
+        monitor = sct.monitors[0]
+        sct_img = np.array(sct.grab(monitor))
+        return sct_img[:,:,:3]
+
+def positions(target, threshold=0.5,img = None):
+    location = pyautogui.locateOnScreen(target, confidence=threshold)
+    if location:
+        x,y,w,h = location
+        return (x, y, w, h)
+    return []
+
+def processLogin():
+    dbg.console('Starting Login', 'INFO', 'ambos')
+    sys.stdout.flush()
+    loginSPG()
+    playSPG()
+
+def scroll(clickAndDragAmount):
+    global timesScrolled
+    global scrollChances
+    flagScroll = positions(images['spg-flag-scroll'], 0.7)    
+    if (len(flagScroll) > 0):
+        x,y,w,h = flagScroll
+        moveToWithRandomness(x,y)
+        pyautogui.dragRel(0,clickAndDragAmount,duration=0.5, button='left')
+        timesScrolled = timesScrolled + 1
+        dbg.console('Procurando naves disponíveis, chance: ' + str(scrollChances - timesScrolled), 'INFO', 'ambos')
+        time.sleep(3)
+    else:
+        return
+
+
+def loginSPG():
+    global login_attempts    
+    if login_attempts > 3:
+        dbg.console('Too many login attempts, refreshing', 'ERROR', 'ambos')
+        login_attempts = 0
+        processLogin()
+        return
+    if clickBtn(images['connect-wallet'], name='connectWalletBtn', timeout = 10):
+        dbg.console('Connect wallet button detected, logging in!', 'INFO', 'ambos')
+        login_attempts = login_attempts + 1
+    # if clickBtn(images['sign'], name='sign button', timeout=8):
+    if clickBtn(images['assinar'], name='sign button', timeout=8):
+        login_attempts = login_attempts + 1
+        return
+    if clickBtn(images['sign'], name='signBtn', timeout = 20):
+        login_attempts = login_attempts + 1
+
+def playSPG():
+    if clickBtn(images['play'], name='okPlay', timeout=5):
+        dbg.console('played SPG','INFO', 'ambos')
+
+def login():
+    if clickBtn(images['connect-wallet'], name='conectBtn', timeout=5):
+        processLogin() 
+        return True
+    else:
+        return False
+
+def isBossEight():
+    if(len(positions(images['boss-8'], 1)) > 0):
+        dbg.console("Boss 8, starting over", 'INFO', 'ambos')
+        clickBtn(images['spg-surrender'])
+        return True
+    else: 
+        return False
+
+def confirm():
+    isBossEight()
+    confirm_action = False
+    if clickBtn(images['confirm'], name='okBtn', timeout=1):
+        dbg.console('Confirm encontrado','INFO', 'ambos')
+        time.sleep(1) 
+        endFight()  
+        confirm_action = True
+    if clickBtn(images['confirm-victory'], name='okVicBtn', timeout=1, threshold=0.6) or clickBtn(images['confirm-victory13'], name='okVicBtn', timeout=1, threshold=0.6) or clickBtn(images['confirm-victory14'], name='okVicBtn', timeout=1, threshold=0.6):
+        dbg.console('Confirm victory encontrado','INFO', 'ambos')
+        confirm_action = True
+        
+    return confirm_action
+
+def removeSpaceships():
+    global ship_clicks
+    time.sleep(0.5)
+    ship_clicks = 0
+    buttonRemove = positions(images['spg-x'], threshold=0.9)
+    if screen_close():
+        main()
+
+    if len(buttonRemove) > 0:
+        x,y,w,h = buttonRemove
+        pos_click_x = x+w/2
+        pos_click_y = y+h/2
+        moveToWithRandomness(pos_click_x,pos_click_y)
+        pyautogui.click()
+        dbg.console("Removing spaceship", 'INFO', 'ambos')
+        removeSpaceships()
+
+def clickButtonsFight():
+    global qtd_send_spaceships
+    global ship_clicks
+    buttonFight = positions(images['spg-go-fight'], 0.9)
+    if(buttonFight):
+        x,y,w,h = buttonFight
+        moveToWithRandomness(x+(w/2),y+(h/2))
+        pyautogui.click()
+        dbg.console('Nave ' + str(ship_clicks)+ ' selecionada', 'INFO', 'ambos')
+        time.sleep(2)
+        ship_clicks = ship_clicks + 1
+        if ship_clicks >= qtd_send_spaceships:
+            dbg.console('Finish Click ships', 'INFO', 'ambos')
+            time.sleep(1)
+            goToFight()
+        else:
+            clickButtonsFight()
+        return qtd_send_spaceships - ship_clicks
+    else:
+        if timesScrolled >= scrollChances:
+            reloadSpaceship()
+            refreshSpaceships(ship_clicks)
+        else:
+            scroll(-cda)
+            clickButtonsFight()
+
+def refreshPage():
+    pass
+
+def screen_close():
+    if clickBtn(images['close']):
+        dbg.console('Encontrou close', 'ERROR', 'ambos')        
+        return True
+    else:
+        return False
+
+def reloadSpaceship():
+    global timesScrolled
+    timesScrolled = 0
+    if len(positions(images['close'], 0.5)) > 0:
+        if screen_close():
+            main()
+    elif len(positions(images['spg-base'], 0.7)) > 0:
+        clickBtn(images['spg-base'], name='closeBtn', timeout=1)
+        dbg.console('Indo para a base', 'INFO', 'ambos')
+        time.sleep(3)
+        clickBtn(images['spg-ship'], name='closeBtn', timeout=1)
+        dbg.console('Indo para a nave', 'INFO', 'ambos')
+        time.sleep(3)        
+
+def refreshSpaceships(qtd):
+    global empty_qtd_spaceships
+    global qtd_send_spaceships
+    global ship_clicks
+    global timesScrolled
+
+    dbg.console('Refresh Spaceship to Fight', 'INFO', 'ambos')
+    if screen_close():
+        main()
+    
+    if qtd > 0:
+        dbg.console('Quantidade ja selecionada:' + str(ship_clicks), 'DEBUG', 'ambos')
+        if ship_clicks == qtd_send_spaceships:
+            time.sleep(2)
+            goToFight()
+
+    while timesScrolled <= scrollChances:
+        clickButtonsFight()
+
+    if ship_clicks == qtd_send_spaceships:
+        empty_scrolls_attempts = 0
+        time.sleep(2)
+        goToFight()
+    else:
+        reloadSpaceship()
+        refreshSpaceships(ship_clicks)
+        
+def goToFight():
+    clickBtn(images['fight-boss'])
+    time.sleep(2)
+    clickBtn(images['confirm'])
+    main(True)
+
+def endFight():
+    dbg.console("End fight", 'INFO', 'ambos')
+    time.sleep(3) 
+    goToSpaceShips()
+    time.sleep(15) 
+    if len(positions(images['spg-processing'], 0.9)) > 0:
+        time.sleep(10) 
+    if len(positions(images['fight-boss'], 0.9)) > 0:
+        dbg.console('Checking spaceship in battle', 'INFO', 'ambos')
+        removeSpaceships()
+        time.sleep(1) 
+        refreshSpaceships(0)
+    else:
+        refreshPage()
+
+def goToSpaceShips():
+    if clickBtn(images['ship']):
+        global login_attempts
+        login_attempts = 0
+
+def zero_ships():
+    if len(positions(images['spg-surrender'], 0.7)) > 0:
+        start = time.time()
+        has_timed_out = False
+        while(not has_timed_out):
+            matches = positions(images['0-15'], 0.9)
+            if(len(matches)==0):
+                has_timed_out = time.time()-start > 3
+                continue
+            elif(len(matches)>0):
+                clickBtn(images['ship'])
+                return True
+    return False
+                  
+
+def main(started = False):
+    global images    
+    global login_attempts
+    login_attempts = 0
+    images = load_images()
+
+    if started:
+        dbg.console('Ataque iniciado.', 'INFO', 'ambos')
+    else: 
+        dbg.console('Bot Iniciado. Versao: ' + str(VERSAO_SCRIPT), 'INFO', 'ambos')
+
+    time_start = {
+    "close" : 0,
+    "login" : 0,
+    }
+    time_to_check = {
+    "close" : 5,  
+    "login" : 1,
+    }
+
+    while True:
+        actual_time = time.time()
+
+        action_found = False
+
+        if actual_time - time_start["login"] > addRandomness(time_to_check['login'] * 1):
+            sys.stdout.flush()
+            time_start["login"] = actual_time
+            if not login():
+                if len(positions(images['fight-boss'], 0.9)) > 0:
+                    dbg.console('Checking spaceship in battle', 'INFO', 'ambos')
+                    removeSpaceships()
+                    refreshSpaceships(0)
+                    action_found = True
+            else:
+                action_found = True     
+
+        if confirm():
+            action_found = True 
+
+        if isBossEight():
+            action_found = True
+
+        if zero_ships():
+            action_found = True       
+        
+        if actual_time - time_start["close"] > time_to_check['close']:
+            time_start["close"] = actual_time
+            if screen_close():
+                action_found = True
+
+        if action_found == False:
+            dbg.console('Nenhuma acao encontrada', 'WARNING', 'ambos')
+
+if __name__ == '__main__':
+    main()
