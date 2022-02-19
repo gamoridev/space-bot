@@ -295,15 +295,11 @@ def goToSpaceShips():
 def zero_ships():
     if len(positions(images['spg-surrender'], 0.7)) > 0:
         start = time.time()
-        has_timed_out = False
-        while(not has_timed_out):
-            matches = positions(images['0-15'], 0.9)
-            if(len(matches)==0):
-                has_timed_out = time.time()-start > 3
-                continue
-            elif(len(matches)>0):
-                clickBtn(images['ship'])
-                return True
+        emptyShips = positions(images['0-15'], 0.9)
+        if(len(emptyShips) > 0):
+            print('0 ships found in battle', 'INFO')
+            clickBtn(images['ship'])
+            return True
     return False
                   
 
