@@ -332,6 +332,7 @@ def main(started = False):
 
         action_found = False
 
+        playSPG()
         if actual_time - time_start["login"] > addRandomness(time_to_check['login'] * 1):
             sys.stdout.flush()
             time_start["login"] = actual_time
