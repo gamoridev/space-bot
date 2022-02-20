@@ -16,8 +16,8 @@ VERSAO_SCRIPT = "1"
 pyautogui.PAUSE = 0.2
 
 # Account config
-empty_qtd_spaceships = 30
-qtd_send_spaceships = 10
+empty_qtd_spaceships = 32
+qtd_send_spaceships = 8
 cda = 100
 
 global x_scroll
@@ -97,8 +97,8 @@ def printSreen():
         sct_img = np.array(sct.grab(monitor))
         return sct_img[:,:,:3]
 
-def positions(target, threshold=0.5,img = None):
-    location = pyautogui.locateOnScreen(target, confidence=threshold)
+def positions(target, threshold=0.6, region=None):
+    location = pyautogui.locateOnScreen(target, confidence=threshold, region=region)
     if location:
         x,y,w,h = location
         return (x, y, w, h)
@@ -153,16 +153,17 @@ def login():
     else:
         return False
 
-def isBossEight():
-    if(len(positions(images['boss-8'], 1)) > 0):
-        dbg.console("Boss 8 found, starting over", 'INFO')
-        clickBtn(images['spg-surrender'])
-        return True
-    else: 
-        return False
+# def isBossEight():
+#     if(len(positions(images['boss-8-life'], threshold=0.9, region=(700, 180, 400, 100))) > 0):
+#         dbg.console("Boss 8 found, starting over", 'INFO')
+#         clickBtn(images['spg-surrender'])
+#         clickBtn(images['confirm-surrender'])
+#         return True
+#     else: 
+#         return False
 
 def confirm():
-    isBossEight()
+    # isBossEight()
     confirm_action = False
     if clickBtn(images['confirm'], name='okBtn', timeout=1):
         dbg.console('Confirm encontrado','INFO')
@@ -276,9 +277,9 @@ def endFight():
     dbg.console("Ending fight", 'INFO')
     time.sleep(3) 
     goToSpaceShips()
-    time.sleep(15) 
+    time.sleep(3) 
     if len(positions(images['spg-processing'], 0.9)) > 0:
-        time.sleep(10) 
+        time.sleep(5) 
     if len(positions(images['fight-boss'], 0.9)) > 0:
         dbg.console('Checking spaceship in battle', 'INFO')
         removeSpaceships()
@@ -292,15 +293,15 @@ def goToSpaceShips():
         global login_attempts
         login_attempts = 0
 
-def zero_ships():
-    if len(positions(images['spg-surrender'], 0.7)) > 0:
-        start = time.time()
-        emptyShips = positions(images['0-15'], 0.9)
-        if(len(emptyShips) > 0):
-            print('0 ships found in battle', 'INFO')
-            clickBtn(images['ship'])
-            return True
-    return False
+def fewShips():
+    oneShipOnly = positions(images['1-15'], 0.9)
+    twoShipsOnly = positions(images['2-15'], 0.9) 
+    if(len(oneShipOnly) > 0 or len(twoShipsOnly) > 0):
+        dbg.console('Few ships found in battle, going back to base', 'INFO')
+        clickBtn(images['ship'])
+        return True
+    else:
+        return False
                   
 
 def main(started = False):
@@ -329,6 +330,7 @@ def main(started = False):
         action_found = False
 
         playSPG()
+        # isBossEight()
         if actual_time - time_start["login"] > addRandomness(time_to_check['login'] * 1):
             sys.stdout.flush()
             time_start["login"] = actual_time
@@ -344,10 +346,8 @@ def main(started = False):
         if confirm():
             action_found = True 
 
-        if isBossEight():
-            action_found = True
 
-        if zero_ships():
+        if fewShips():
             action_found = True       
         
         if actual_time - time_start["close"] > time_to_check['close']:
