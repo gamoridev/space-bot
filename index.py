@@ -27,8 +27,10 @@ global w_scroll
 global ship_clicks
 global timesScrolled
 global scrollChances
+global timesTried
 ship_clicks = 0
 timesScrolled = 0
+timesTried = 0
 scrollChances = 15
 
 dbg = Debug('debug.log')
@@ -196,6 +198,11 @@ def removeSpaceships():
 def clickButtonsFight():
     global qtd_send_spaceships
     global ship_clicks
+    global timesTried
+
+    if timesTried > 5:
+        main()
+
     buttonFight = positions(images['spg-go-fight'], 0.9)
     if(buttonFight):
         x,y,w,h = buttonFight
@@ -218,6 +225,7 @@ def clickButtonsFight():
         else:
             scroll(-cda)
             clickButtonsFight()
+    timesTried = timesTried + 1
 
 def screen_close():
     if clickBtn(images['close']):
@@ -245,9 +253,10 @@ def refreshSpaceships(qtd):
     global qtd_send_spaceships
     global ship_clicks
     global timesScrolled
+    global timesTried
 
     dbg.console('Refreshing spaceship to Fight', 'INFO')
-    if screen_close():
+    if screen_close() or timesTried > 5:
         main()
     
     if qtd > 0:
@@ -266,6 +275,7 @@ def refreshSpaceships(qtd):
     else:
         reloadSpaceship()
         refreshSpaceships(ship_clicks)
+    timesTried = timesTried + 1
         
 def goToFight():
     clickBtn(images['fight-boss'])
@@ -307,9 +317,11 @@ def fewShips():
 def main(started = False):
     global images    
     global login_attempts
+    global timesTried
     login_attempts = 0
     images = load_images()
 
+    timesTried = 0
     if started:
         dbg.console('Initiate attack.', 'INFO')
     else: 
