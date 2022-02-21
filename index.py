@@ -167,7 +167,7 @@ def login():
 def confirm():
     # isBossEight()
     confirm_action = False
-    if clickBtn(images['confirm'], name='okBtn', timeout=1):
+    if clickBtn(images['confirm'], name='okBtn', timeout=1, threshold=0.9):
         dbg.console('Confirm encontrado','INFO')
         time.sleep(1) 
         endFight()  
