@@ -200,7 +200,8 @@ def clickButtonsFight():
     global ship_clicks
     global timesTried
 
-    if timesTried > 5:
+    timesTried = timesTried + 1
+    if timesTried > 10:
         main()
 
     buttonFight = positions(images['spg-go-fight'], 0.9)
@@ -208,8 +209,8 @@ def clickButtonsFight():
         x,y,w,h = buttonFight
         moveToWithRandomness(x+(w/2),y+(h/2))
         pyautogui.click()
-        dbg.console('Nave ' + str(ship_clicks)+ ' selecionada', 'INFO')
-        time.sleep(2)
+        dbg.console('Nave ' + str(ship_clicks + 1)+ ' selecionada', 'INFO')
+        time.sleep(0.5)
         ship_clicks = ship_clicks + 1
         if ship_clicks >= qtd_send_spaceships:
             dbg.console('Team all set, starting fight!', 'INFO')
@@ -225,7 +226,6 @@ def clickButtonsFight():
         else:
             scroll(-cda)
             clickButtonsFight()
-    timesTried = timesTried + 1
 
 def screen_close():
     if clickBtn(images['close']):
@@ -256,7 +256,8 @@ def refreshSpaceships(qtd):
     global timesTried
 
     dbg.console('Refreshing spaceship to Fight', 'INFO')
-    if screen_close() or timesTried > 5:
+    timesTried = timesTried + 1
+    if screen_close() or timesTried > 10:
         main()
     
     if qtd > 0:
@@ -275,7 +276,6 @@ def refreshSpaceships(qtd):
     else:
         reloadSpaceship()
         refreshSpaceships(ship_clicks)
-    timesTried = timesTried + 1
         
 def goToFight():
     clickBtn(images['fight-boss'])
