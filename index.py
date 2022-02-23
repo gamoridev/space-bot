@@ -28,10 +28,14 @@ global ship_clicks
 global timesScrolled
 global scrollChances
 global timesTried
+global defeatedBosses
+global maxWave
 ship_clicks = 0
 timesScrolled = 0
 timesTried = 0
 scrollChances = 15
+defeatedBosses = 0
+maxWave = 7
 
 dbg = Debug('debug.log')
 
@@ -155,26 +159,21 @@ def login():
     else:
         return False
 
-# def isBossEight():
-#     if(len(positions(images['boss-8-life'], threshold=0.9, region=(700, 180, 400, 100))) > 0):
-#         dbg.console("Boss 8 found, starting over", 'INFO')
-#         clickBtn(images['spg-surrender'])
-#         clickBtn(images['confirm-surrender'])
-#         return True
-#     else: 
-#         return False
-
 def confirm():
-    # isBossEight()
+    global defeatedBosses
     confirm_action = False
     if clickBtn(images['confirm'], name='okBtn', timeout=1, threshold=0.9):
-        dbg.console('Confirm encontrado','INFO')
+        dbg.console('Confirm found!','INFO')
         time.sleep(1) 
         endFight()  
         confirm_action = True
     if clickBtn(images['confirm-victory'], name='okVicBtn', timeout=1, threshold=0.6) or clickBtn(images['confirm-victory13'], name='okVicBtn', timeout=1, threshold=0.6) or clickBtn(images['confirm-victory14'], name='okVicBtn', timeout=1, threshold=0.6):
         dbg.console('Boss defeated!','INFO')
+        defeatedBosses = defeatedBosses + 1
         confirm_action = True
+    if(defeatedBosses == maxWave):
+        time.sleep(1)
+        surrender()
         
     return confirm_action
 
@@ -254,7 +253,9 @@ def refreshSpaceships(qtd):
     global ship_clicks
     global timesScrolled
     global timesTried
+    global defeatedBosses
 
+    defeatedBosses = 0
     dbg.console('Refreshing spaceship to Fight', 'INFO')
     timesTried = timesTried + 1
     if screen_close() or timesTried > 10:
@@ -303,15 +304,19 @@ def goToSpaceShips():
         global login_attempts
         login_attempts = 0
 
-def fewShips():
-    oneShipOnly = positions(images['1-15'], 0.9)
-    twoShipsOnly = positions(images['2-15'], 0.9) 
-    if(len(oneShipOnly) > 0 or len(twoShipsOnly) > 0):
-        dbg.console('Few ships found in battle, going back to base', 'INFO')
-        clickBtn(images['ship'])
-        return True
-    else:
-        return False
+def surrender():
+    global maxWave
+    dbg.console('Defeated '+ str(maxWave) +' bosses, giving up (Surrender)', 'INFO')
+    time.sleep(0.5)
+    clickBtn(images['spg-surrender'])
+    time.sleep(0.5)
+    dbg.console('Confirm surrender', 'INFO')
+    clickBtn(images['confirm-surrender'])
+    
+    dbg.console('Wait for Processing time...', 'INFO')
+    time.sleep(5)
+    dbg.console('Going back to ship', 'INFO')
+    clickBtn(images['ship'])
                   
 
 def main(started = False):
@@ -358,10 +363,6 @@ def main(started = False):
         if confirm():
             action_found = True 
 
-
-        if fewShips():
-            action_found = True       
-        
         if actual_time - time_start["close"] > time_to_check['close']:
             time_start["close"] = actual_time
             if screen_close():
